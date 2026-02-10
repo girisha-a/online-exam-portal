@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - AI Online Exam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="center-box">
+        <div class="form-container" style="width: 100%; max-width: 420px; position: relative; overflow: hidden;">
+            <!-- Decorative Glow -->
+            <div
+                style="position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 100px; height: 100px; background: var(--primary); filter: blur(60px); opacity: 0.5;">
+            </div>
+
+            <div style="text-align: center; margin-bottom: 2rem; position: relative;">
+                <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎓</div>
+                <h2 style="font-size: 1.8rem;">Student Portal</h2>
+                <p class="text-muted">Secure AI-Proctored Examination System</p>
+            </div>
+
+            <form method="post">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="student@university.edu" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">
+                    Enter Exam Portal
+                </button>
+
+                <p style="margin-top: 1.5rem; text-align: center; font-size: 0.9rem; color: var(--text-muted);">
+                    New student? <a href="/register"
+                        style="color: var(--primary); text-decoration: none; font-weight: 600;">Create Account</a>
+                </p>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

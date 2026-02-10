@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - AI Online Exam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="admin-container">
+        <header
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; background: rgba(30, 41, 59, 0.4); padding: 1.5rem 2rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(10px);">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="font-size: 2.5rem;">🛡️</div>
+                <div>
+                    <h1
+                        style="font-size: 1.5rem; margin: 0; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Proctoring Dashboard</h1>
+                    <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">Real-time Examination Monitoring
+                        System</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1.5rem; align-items: center;">
+                <div
+                    style="display: flex; align-items: center; gap: 0.5rem; background: rgba(16, 185, 129, 0.1); padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <div
+                        style="width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent);">
+                    </div>
+                    <span style="color: var(--accent); font-size: 0.85rem; font-weight: 600;">System Secure</span>
+                </div>
+                <a href="/admin/logout" class="btn"
+                    style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); box-shadow: none; padding: 0.5rem 1.25rem; font-size: 0.85rem;">
+                    Logout
+                </a>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Left Column: Active Exams & History -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+
+                <!-- ACTIVE SESSIONS -->
+                <div class="card">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3>Active Live Sessions <span
+                                style="font-size: 1rem; color: var(--text-muted); font-weight: 400; margin-left: 0.5rem;">({{
+                                active_exams|length }})</span></h3>
+                        {% if active_exams %}
+                        <span class="status-badge"
+                            style="background: var(--primary); animation: pulse 2s infinite;">Live Monitoring</span>
+                        {% endif %}
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Status & Duration</th>
+                                    <th>Violations</th>
+                                    <th>Live Feed</th>
+                                    <th>Controls</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for email, data in active_exams.items() %}
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600; color: white; margin-bottom: 0.25rem;">{{ email }}
+                                        </div>
+                                        <div
+                                            style="font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
+                                            Login: {{ data.login_time.split(' ')[1] }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="margin-bottom: 8px;">
+                                            <span class="status-badge"
+                                                style="background: {% if data.face_status == 'Active' %}#10b981{% elif 'Init' in data.face_status %}#3b82f6{% else %}#ef4444{% endif %};">
+                                                {{ data.get('face_status', 'Unknown') }}
+                                            </span>
+                                        </div>
+                                        <div
+                                            style="font-size: 0.8rem; color: var(--warning); font-family: 'JetBrains Mono', monospace;">
+                                            <script>
+                                                document.write(Math.floor((new Date() - new Date("{{ data.login_time }}")) / 60000) + "m active");
+                                            </script>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div
+                                            style="display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem;">
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span class="text-muted">Tabs:</span>
+                                                <span class="violation-count"
+                                                    style="color: {{ '#ef4444' if data.tab_switches > 0 else '#94a3b8' }}">{{
+                                                    data.tab_switches }}</span>
+                                            </div>
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span class="text-muted">Face:</span>
+                                                <span class="violation-count"
+                                                    style="color: {{ '#ef4444' if data.face_violations > 0 else '#94a3b8' }}">{{
+                                                    data.face_violations }}</span>
+                                            </div>
+                                            <div style="display: flex; justify-content: space-between;">
+                                                <span class="text-muted">Focus:</span>
+                                                <span class="violation-count"
+                                                    style="color: {{ '#ef4444' if data.looking_away_count > 0 else '#94a3b8' }}">{{
+                                                    data.looking_away_count }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="width: 180px;">
+                                        {% if data.last_snapshot %}
+                                        <div style="position: relative;">
+                                            <img src="{{ url_for('static', filename='snapshots/' + data.last_snapshot) }}?t={{ range(1, 99999)|random }}"
+                                                class="snapshot-preview {% if data.is_streaming %}streaming{% endif %}"
+                                                id="img-{{ email.replace('@', '_').replace('.', '_') }}">
+                                            {% if data.is_streaming %}
+                                            <div class="live-indicator">LIVE</div>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <div class="snapshot-preview"
+                                            style="display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-muted); border: 2px dashed rgba(255,255,255,0.1);">
+                                            No Snapshot
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                            <button class="btn-warn" onclick="sendWarning('{{ email }}')"
+                                                style="padding: 0.4rem; font-size: 0.75rem; width: 100%;">⚠️
+                                                Warn</button>
+                                            <button class="btn-cam" onclick="requestSnapshot('{{ email }}')"
+                                                style="padding: 0.4rem; font-size: 0.75rem; width: 100%;">📸
+                                                Snap</button>
+                                            <button class="btn-live {% if data.is_streaming %}active{% endif %}"
+                                                onclick="toggleStream('{{ email }}', {{ data.is_streaming|tojson }})"
+                                                style="padding: 0.4rem; font-size: 0.75rem; width: 100%;">
+                                                {% if data.is_streaming %}⏹ Stop{% else %}🔴 Live{% endif %}
+                                            </button>
+
+                                            <button class="btn-kick" onclick="terminateSession('{{ email }}')"
+                                                style="padding: 0.4rem; font-size: 0.75rem; width: 100%; margin-top: 4px;">⛔
+                                                Terminate</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% if not active_exams %}
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 4rem 2rem;">
+                                        <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;">📭</div>
+                                        <div style="color: var(--text-muted); font-size: 1.1rem;">No active examinations
+                                            at the moment.</div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- HISTORY -->
+                <div class="card">
+                    <h3 style="margin-bottom: 1.5rem;">Exam History</h3>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table style="font-size: 0.9rem;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-dark); z-index: 10;">
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Result</th>
+                                    <th>Risk Level</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for res in results|reverse %}
+                                <tr>
+                                    <td>{{ res.email }}</td>
+                                    <td>
+                                        <span style="font-weight: 700; color: white;">{{ res.score }}/{{ res.total
+                                            }}</span>
+                                        <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 5px;">({{
+                                            res.percentage }}%)</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge"
+                                            style="background: {% if 'TERMINATED' in res.risk or 'HIGH' in res.risk.upper() %}#ef4444{% elif 'MEDIUM' in res.risk.upper() %}#f59e0b{% else %}#10b981{% endif %};">
+                                            {{ res.risk }}
+                                        </span>
+                                    </td>
+                                    <td
+                                        style="font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono';">
+                                        {{ res.duration }} min</td>
+                                </tr>
+                                {% endfor %}
+                                {% if not results %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted" style="padding: 2rem;">No history
+                                        available.</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Analytics & Logs -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+
+                <!-- Performance Chart -->
+                <div class="card">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.2rem;">Performance vs Suspicion</h3>
+                    <div class="chart-container" style="position: relative; height: 250px;">
+                        <canvas id="scoreChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Risk Chart -->
+                <div class="card">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.2rem;">Risk Distribution</h3>
+                    <div class="chart-container"
+                        style="position: relative; height: 250px; display: flex; justify-content: center;">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Login Logs -->
+                <div class="card">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.2rem;">Recent Logins</h3>
+                    <div style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                        <table style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th style="padding: 0.75rem;">User</th>
+                                    <th style="padding: 0.75rem;">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs|reverse %}
+                                <tr>
+                                    <td style="padding: 0.75rem;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div
+                                                style="width: 24px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem;">
+                                                👤</div>
+                                            {{ log.email }}
+                                        </div>
+                                    </td>
+                                    <td
+                                        style="padding: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono';">
+                                        {{ log.time.split(' ')[1] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ... (existing functions for warning, snapshot, stream, terminate) ...
+        const activeExams = {{ active_exams| tojson }};
+
+        function sendWarning(email) {
+            const msg = prompt("Enter specific warning for " + email + ":");
+            if (!msg) return;
+            fetch('/admin/warn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, msg })
+            });
+        }
+
+        function requestSnapshot(email) {
+            fetch('/admin/request-snapshot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            }).then(() => {
+                // Show simple toast or alert
+                alert("Snapshot requested for " + email);
+            });
+        }
+
+        function toggleStream(email, currentState) {
+            const newState = !currentState;
+            fetch('/admin/toggle-stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, stream: newState })
+            }).then(() => location.reload());
+        }
+
+        function terminateSession(email) {
+            if (!confirm(`CRITICAL: Are you sure you want to terminate the exam for ${email}? This action cannot be undone.`)) return;
+            fetch('/admin/terminate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+        }
+
+        // --- CHARTS LOGIC ---
+        const resultsData = {{ results| tojson }};
+
+        // Common Chart Options
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        if (resultsData.length > 0) {
+            // 1. Score vs Suspicion Scatter Plot
+            const scatterCtx = document.getElementById('scoreChart').getContext('2d');
+            new Chart(scatterCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Students',
+                        data: resultsData.map(r => ({
+                            x: r.percentage,
+                            y: r.suspicion || 0,
+                            name: r.email.split('@')[0]
+                        })),
+                        backgroundColor: resultsData.map(r => {
+                            if (r.suspicion > 50) return '#ef4444';
+                            if (r.suspicion > 20) return '#f59e0b';
+                            return '#10b981';
+                        }),
+                        pointRadius: 6,
+                        pointHoverRadius: 10,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Exam Score (%)' },
+                            min: 0, max: 100,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Suspicion Score' },
+                            min: 0, max: 100,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            padding: 10,
+                            callbacks: {
+                                label: function (context) {
+                                    const point = context.raw;
+                                    return `${point.name}: Score ${point.x}%, Suspicion ${point.y}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Risk Distribution Donut
+            const riskCounts = { 'Low': 0, 'Medium': 0, 'High': 0, 'TERMINATED': 0 };
+            resultsData.forEach(r => {
+                let rLabel = r.risk;
+                if (rLabel.includes('TERMINATED')) rLabel = 'TERMINATED';
+                else if (rLabel === 'Normal') rLabel = 'Low';
+
+                if (riskCounts[rLabel] !== undefined) riskCounts[rLabel]++;
+                else riskCounts['High']++;
+            });
+
+            const riskCtx = document.getElementById('riskChart').getContext('2d');
+            new Chart(riskCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(riskCounts),
+                    datasets: [{
+                        data: Object.values(riskCounts),
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#7c3aed'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } },
+                        title: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Auto-refresh dash
+        setInterval(() => {
+            if (!document.querySelector('.swal2-container')) {
+                location.reload();
+            }
+        }, 10000);
+    </script>
+</body>
+
+</html>

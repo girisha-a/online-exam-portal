@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI & ML Exam - Pro Proctoring</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Load face-api.js from CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+
+<body class="exam-body">
+    <!-- Warning/Termination Overlay -->
+    <div id="warning-overlay" class="warning-overlay">
+        <div class="warning-box">
+            <h1 id="overlay-title" style="color: #ef4444; font-size: 3rem;">⚠️ WARNING</h1>
+            <p id="warning-msg" style="font-size: 1.25rem; margin: 1rem 0;">Multiple Tab Switches Detected!</p>
+            <p id="violation-text">You have <span id="warn-count" style="font-weight: 800; color: #ef4444;">0</span>/3
+                warnings.</p>
+            <button id="resume-btn" onclick="resumeExam()" style="width: auto; padding: 0.75rem 2rem;">I Understand,
+                Resume</button>
+        </div>
+    </div>
+
+    <!-- Camera Preview -->
+    <div id="video-container">
+        <video id="video" autoplay muted></video>
+        <span id="face-status">Initializing AI...</span>
+    </div>
+
+    <div class="container exam-card" id="main-exam-container">
+        <div
+            style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; margin-bottom: 2rem;">
+            <div>
+                <h2>Advanced AI & ML Assessment</h2>
+                <span id="proctor-status" style="font-size: 0.8rem; color: #10b981;">● Pro Proctoring Active</span>
+            </div>
+            <div id="timer" style="color: var(--primary); font-weight: 700; font-size: 1.25rem;">30:00</div>
+        </div>
+
+        <form id="examForm" action="/submit" method="post">
+            <input type="hidden" name="time_spent" id="time_spent" value="0">
+            <input type="hidden" name="answer_changes" id="answer_changes" value="0">
+            <input type="hidden" name="tab_switches" id="tab_switches" value="0">
+            <input type="hidden" name="face_violations" id="face_violations" value="0">
+            <input type="hidden" name="looking_away_count" id="looking_away_count" value="0">
+            <input type="hidden" name="terminated" id="terminated" value="false">
+
+            <!-- Dynamic Questions from Backend -->
+            {% for q in questions %}
+            <div class="question-block"
+                style="margin-bottom: 2.5rem; padding: 1.5rem; background: rgba(255,255,255,0.02); border-radius: 0.8rem;">
+                <h3 style="margin-bottom: 1.25rem;">{{ loop.index }}. {{ q.q }}</h3>
+                <label class="option-group" style="display: block;">
+                    <input type="radio" name="{{ q.id }}" value="a" required> {{ q.a }}
+                </label>
+                <label class="option-group" style="display: block;">
+                    <input type="radio" name="{{ q.id }}" value="b"> {{ q.b }}
+                </label>
+                <label class="option-group" style="display: block;">
+                    <input type="radio" name="{{ q.id }}" value="c"> {{ q.c }}
+                </label>
+                <label class="option-group" style="display: block;">
+                    <input type="radio" name="{{ q.id }}" value="d"> {{ q.d }}
+                </label>
+            </div>
+            {% endfor %}
+
+            <button type="submit"
+                style="margin-top: 2rem; padding: 1.25rem; font-size: 1.1rem; background: #10b981;">Complete &
+                Submit</button>
+        </form>
+    </div>
+
+    <script>
+        // --- TIMER LOGIC (10 Minutes) ---
+        let timeLimit = 600; // 10 minutes (in seconds)
+        const timerDisplay = document.getElementById('timer');
+
+        const examTimer = setInterval(() => {
+            if (isTerminated) {
+                clearInterval(examTimer);
+                return;
+            }
+
+            timeLimit--;
+
+            // Format Minutes:Seconds
+            const mins = Math.floor(timeLimit / 60);
+            const secs = timeLimit % 60;
+            timerDisplay.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+            if (timeLimit <= 60) {
+                timerDisplay.style.color = '#ef4444'; // Red warning
+                timerDisplay.classList.add('blink'); // Assume blink class exists or just color
+            }
+
+            if (timeLimit <= 0) {
+                clearInterval(examTimer);
+                terminateExam("Time expired!");
+            }
+        }, 1000);
+
+        let startTime = Date.now();
+        let tabSwitches = 0;
+        let answerChanges = 0;
+        let faceViolations = 0;
+        let lookingAwayCount = 0;
+        let warningCount = 0;
+        let isTerminated = false;
+        let currentFaceStatus = "Initializing..."; // New State var
+
+        // --- TAB & WINDOW LOCKDOWN ---
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && !isTerminated) {
+                tabSwitches++;
+                document.getElementById('tab_switches').value = tabSwitches;
+                showWarning("Tab Switching Detected! Stay on the exam page.");
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && !isTerminated) {
+                showWarning("Fullscreen Exit Detected! You must stay in Fullscreen mode.");
+            }
+        });
+
+        function showWarning(msg) {
+            warningCount++;
+            document.getElementById('warn-count').innerText = warningCount;
+            document.getElementById('warning-msg').innerText = msg;
+            document.getElementById('warning-overlay').style.display = 'flex';
+
+            if (warningCount >= 3) {
+                terminateExam("Maximum violations reached.");
+            }
+        }
+
+        function terminateExam(reason) {
+            if (isTerminated) return;
+            isTerminated = true;
+
+            // Calculate final analytics before submission
+            document.getElementById('time_spent').value = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('terminated').value = "true";
+
+            document.getElementById('overlay-title').innerText = "❌ EXAM TERMINATED";
+            document.getElementById('warning-msg').innerText = reason;
+            document.getElementById('violation-text').innerText = "Submitting your answers now...";
+            document.getElementById('resume-btn').style.display = 'none';
+            document.getElementById('warning-overlay').style.display = 'flex';
+
+            setTimeout(() => {
+                document.getElementById('examForm').submit();
+            }, 2000);
+        }
+
+        function resumeExam() {
+            document.getElementById('warning-overlay').style.display = 'none';
+            // Force re-enter fullscreen
+            enterFullscreen();
+        }
+
+        function enterFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(err => {
+                    console.log("Error attempting to enable full-screen mode", err);
+                });
+            }
+        }
+
+        // Auto-enter fullscreen on first click
+        document.addEventListener('click', function init() {
+            enterFullscreen();
+            document.removeEventListener('click', init);
+        }, { once: true });
+
+        // --- FACE & GAZE DETECTION ---
+        const video = document.getElementById('video');
+        const faceStatus = document.getElementById('face-status');
+
+        async function startDetector() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Camera access denied:", err);
+                faceStatus.innerText = "❌ Camera Denied";
+                currentFaceStatus = "Camera Denied";
+                return;
+            }
+
+            // Use a reliable CDN for models
+            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+
+            try {
+                faceStatus.innerText = "Loading AI Models...";
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                console.log("Models loaded successfully");
+            } catch (e) {
+                console.error("Model load failed", e);
+                faceStatus.innerText = "⚠️ AI Load Error (Check Console)";
+            }
+
+            faceStatus.innerText = "Proctoring Active";
+
+            setInterval(async () => {
+                if (isTerminated) return;
+
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+
+                if (detections.length === 0) {
+                    faceStatus.innerText = "🔴 Face Missing!";
+                    faceStatus.className = "status-risk";
+                    currentFaceStatus = "Missing";
+                    faceViolations++;
+                    document.getElementById('face_violations').value = faceViolations;
+                } else if (detections.length > 1) {
+                    faceStatus.innerText = "🔴 Multiple Faces!";
+                    faceStatus.className = "status-risk";
+                    currentFaceStatus = "Multiple Faces";
+                    faceViolations++;
+                    document.getElementById('face_violations').value = faceViolations;
+                } else {
+                    const landmarks = detections[0].landmarks;
+                    const nose = landmarks.getNose()[3];
+                    const faceBox = detections[0].detection.box;
+                    const noseRelativeToFace = (nose.x - faceBox.x) / faceBox.width;
+
+                    if (noseRelativeToFace < 0.3 || noseRelativeToFace > 0.7) {
+                        faceStatus.innerText = "🔴 Looking Away!";
+                        faceStatus.className = "status-risk";
+                        currentFaceStatus = "Looking Away";
+                        lookingAwayCount++;
+                        document.getElementById('looking_away_count').value = lookingAwayCount;
+
+                        // STRICTER LOOK AWAY LOGIC
+                        if (lookingAwayCount === 5) {
+                            alert("⚠️ WARNING: You are looking away too much. Focus on the screen or the exam will be terminated!");
+                            // Or use a custom overlay instead of alert which blocks thread via showWarning if preferred
+                            showWarning("Persistent eye movement detected. FINAL WARNING.");
+                        }
+                        if (lookingAwayCount > 10) {
+                            terminateExam("Terminated due to persistent looking away.");
+                        }
+                    } else {
+                        faceStatus.innerText = "🟢 Active";
+                        faceStatus.className = "";
+                        currentFaceStatus = "Active";
+                    }
+                }
+
+                // --- TELEMETRY SYNC ---
+                syncTelemetry();
+            }, 3000);
+        }
+
+        let streamInterval = null;
+
+        async function syncTelemetry() {
+            try {
+                const response = await fetch('/api/telemetry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tab_switches: tabSwitches,
+                        face_violations: faceViolations,
+                        looking_away_count: lookingAwayCount,
+                        face_status: currentFaceStatus // Send real-time status
+                    })
+                });
+                const data = await response.json();
+
+                // Handle Admin Message
+                if (data.admin_msg) {
+                    showWarning(`ADMIN WARNING: ${data.admin_msg}`);
+                }
+
+                // Handle Admin Termination
+                if (data.terminate) {
+                    terminateExam("Remote termination by administrator.");
+                }
+
+                // Handle Snapshot Request
+                if (data.snapshot_request) {
+                    captureAndUploadSnapshot();
+                }
+
+                // Handle Live Streaming
+                if (data.is_streaming) {
+                    if (!streamInterval) {
+                        console.log("Starting Live Stream...");
+                        streamInterval = setInterval(captureAndUploadSnapshot, 1000); // 1 FPS
+                    }
+                } else {
+                    if (streamInterval) {
+                        console.log("Stopping Live Stream...");
+                        clearInterval(streamInterval);
+                        streamInterval = null;
+                    }
+                }
+
+                // --- SYNC CHAT MESSAGES ---
+                if (data.messages) {
+                    const chatBody = document.getElementById('chat-content');
+                    // Simple Diff: Only update if length changed to avoid scroll jumping, 
+                    // or clear and simple-re-render for MVP. 
+                    // For robustness, we'll just re-render if count differs.
+                    if (chatBody.childElementCount !== data.messages.length) {
+                        chatBody.innerHTML = '';
+                        data.messages.forEach(msg => {
+                            const div = document.createElement('div');
+                            div.style.marginBottom = "5px";
+                            div.style.padding = "5px 8px";
+                            div.style.borderRadius = "4px";
+                            div.style.fontSize = "0.85rem";
+
+                            if (msg.sender === 'Admin') {
+                                div.style.background = "var(--primary)";
+                                div.style.color = "white";
+                                div.style.alignSelf = "flex-start";
+                                div.style.textAlign = "left";
+                                div.innerHTML = `<strong>Admin:</strong> ${msg.text}`;
+                            } else {
+                                div.style.background = "rgba(255,255,255,0.1)";
+                                div.style.alignSelf = "flex-end";
+                                div.style.textAlign = "right";
+                                div.innerText = msg.text;
+                            }
+                            chatBody.appendChild(div);
+                        });
+                        chatBody.scrollTop = chatBody.scrollHeight;
+                    }
+                }
+            } catch (e) {
+                console.error("Telemetry Sync Error:", e);
+            }
+        }
+
+        function captureAndUploadSnapshot() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            fetch('/api/upload-snapshot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            });
+        }
+
+        startDetector();
+
+        document.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.onchange = () => {
+                answerChanges++;
+                document.getElementById('answer_changes').value = answerChanges;
+            };
+        });
+
+        document.getElementById('examForm').onsubmit = () => {
+            document.getElementById('time_spent').value = Math.floor((Date.now() - startTime) / 1000);
+        };
+        function toggleChat() {
+            const chatBox = document.getElementById('chat-box');
+            chatBox.style.display = chatBox.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value;
+            if (!msg) return;
+
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            });
+            input.value = '';
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - AI Online Exam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="center-box">
+        <div class="form-container" style="width: 100%; max-width: 420px; border-color: rgba(236, 72, 153, 0.3);">
+            <!-- Decorative Glow -->
+            <div
+                style="position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 100px; height: 100px; background: var(--secondary); filter: blur(60px); opacity: 0.4;">
+            </div>
+
+            <div style="text-align: center; margin-bottom: 2rem; position: relative;">
+                <div
+                    style="font-size: 3.5rem; margin-bottom: 0.5rem; filter: drop-shadow(0 0 10px rgba(236,72,153,0.5));">
+                    🛡️</div>
+                <h2 style="font-size: 1.8rem; color: white;">Admin Access</h2>
+                <p class="text-muted">Proctoring Control Center</p>
+            </div>
+
+            <form method="POST">
+                <div class="form-group">
+                    <label>Administrator Email</label>
+                    <input type="email" name="email" placeholder="admin@system.com" required value="admin@exam.com"
+                        style="border-color: rgba(236, 72, 153, 0.3); background: rgba(0,0,0,0.3);">
+                </div>
+                <div class="form-group">
+                    <label>Security Key</label>
+                    <input type="password" name="password" placeholder="••••••••" required
+                        style="border-color: rgba(236, 72, 153, 0.3); background: rgba(0,0,0,0.3);">
+                </div>
+
+                <button type="submit" class="btn"
+                    style="width: 100%; margin-top: 1rem; background: linear-gradient(135deg, var(--secondary), #db2777); box-shadow: 0 4px 12px rgba(219, 39, 119, 0.3);">
+                    Unlock Dashboard
+                </button>
+            </form>
+
+            <div
+                style="margin-top: 2rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                <a href="/"
+                    style="color: var(--text-muted); text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center;">
+                    <span style="margin-right: 5px;">←</span> Return to Student Portal
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
